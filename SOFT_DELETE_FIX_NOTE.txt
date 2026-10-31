@@ -1,0 +1,7 @@
+Soft-delete adjustment:
+- Sender-only ownership checks remain in Firestore Rules.
+- The message update now changes only text to empty and deleted to true.
+- It no longer sends FieldValue.delete() for imageUrl or a serverTimestamp transform for deletedAt.
+- The app UI already checks deleted == true first and displays 'This message was deleted'.
+- Publish the included firestore.rules in Firebase Console if they are not already deployed.
+- This source change has not been built or live-tested against Firebase in this environment.

@@ -1,0 +1,30 @@
+# Android / Gradle build files
+.gradle/
+.kotlin/
+build/
+**/build/
+local.properties
+*.iml
+
+# IDE files
+.idea/
+.vscode/
+
+# Project backups
+.backup-*/
+.theme-backup/
+
+# Generated APKs
+*.apk
+*.aab
+
+# Signing keys and secrets
+*.jks
+*.keystore
+secrets.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+app/google-services.json
+*.bak

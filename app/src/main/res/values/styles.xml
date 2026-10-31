@@ -1,0 +1,24 @@
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#0D3035</item>
+        <item name="colorPrimaryVariant">#061C20</item>
+        <item name="colorSecondary">#00777F</item>
+        <item name="android:colorAccent">#00777F</item>
+        <item name="android:statusBarColor">#061C20</item>
+        <item name="android:navigationBarColor">#061C20</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="ElBandidosPopupTheme" parent="ThemeOverlay.MaterialComponents.Dark">
+        <item name="colorPrimary">#0D3035</item>
+        <item name="colorPrimaryVariant">#061C20</item>
+        <item name="colorSecondary">#00777F</item>
+        <item name="colorSurface">#0D3035</item>
+        <item name="colorOnSurface">#E8F5F4</item>
+        <item name="android:colorAccent">#00777F</item>
+        <item name="android:textColorPrimary">#E8F5F4</item>
+        <item name="android:textColorSecondary">#97B8B7</item>
+        <item name="android:colorBackground">#0D3035</item>
+        <item name="android:popupBackground">@drawable/elbandidos_popup_background</item>
+    </style>
+</resources>

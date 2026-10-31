@@ -1,0 +1,10 @@
+Firestore message permissions
+
+- Edit: only the message sender (senderId == request.auth.uid).
+- Soft delete: only the message sender; the document remains and the app displays
+  'This message was deleted'.
+- Other users cannot edit or soft-delete someone else's message.
+- Clear History remains a separate operation and can permanently delete message
+  documents according to the existing chat membership rules.
+
+Publish firestore.rules to the SAME Firebase project configured in app/google-services.json.

@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isChatMember(chatId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/chats/$(chatId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
+    }
+    function validMessage() {
+      return request.resource.data.keys().hasOnly([
+          'senderId', 'senderName', 'text', 'timestamp', 'imageUrl'
+        ]) &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.senderName is string &&
+        request.resource.data.text is string &&
+        request.resource.data.text.size() <= 2000 &&
+        request.resource.data.timestamp is timestamp &&
+        ((request.resource.data.text.size() > 0) ||
+          (request.resource.data.imageUrl is string &&
+           request.resource.data.imageUrl.size() > 0 &&
+           request.resource.data.imageUrl.size() <= 2048));
+    }
+    function validMessageEdit() {
+      return signedIn()
+        && resource.data.senderId == request.auth.uid
+        && resource.data.deleted != true
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['text', 'edited', 'editedAt'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.edited == true
+        && request.resource.data.editedAt is timestamp
+        && request.resource.data.senderId == resource.data.senderId;
+    }
+
+    function validMessageSoftDelete() {
+      return signedIn()
+        && resource.data.senderId == request.auth.uid
+        && resource.data.deleted != true
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['text', 'imageUrl', 'deleted', 'deletedAt'])
+        && request.resource.data.text == ''
+        && request.resource.data.deleted == true
+        && (!('deletedAt' in request.resource.data)
+            || request.resource.data.deletedAt is timestamp)
+        && request.resource.data.senderId == resource.data.senderId;
+    }
+
+    match /groupChats/{roomId}/messages/{messageId} {
+      allow read: if signedIn() && roomId == 'main';
+      allow create: if signedIn() && roomId == 'main' && validMessage();
+      // Only the sender can edit or soft-delete their own message.
+      // Only the original sender can edit or soft-delete their own message.
+      allow update: if signedIn()
+        && roomId == 'main'
+        && resource.data.senderId == request.auth.uid
+        && request.resource.data.senderId == resource.data.senderId
+        && (validMessageEdit() || validMessageSoftDelete());
+      // Clearing group history is a deliberate shared action from the chat menu.
+      allow delete: if signedIn() && roomId == 'main';
+    }
+
+    match /chats/{chatId} {
+      // A signed-in user may check a deterministic chat ID before creating it.
+      // Existing conversations remain readable only by their members.
+      allow get: if signedIn() &&
+        (!exists(/databases/$(database)/documents/chats/$(chatId)) ||
+         request.auth.uid in resource.data.members);
+      allow list: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn() &&
+        request.resource.data.members is list &&
+        request.auth.uid in request.resource.data.members &&
+        ((request.resource.data.type == 'GROUP' &&
+          request.resource.data.members.size() >= 2 &&
+          request.resource.data.title is string) ||
+         (!('type' in request.resource.data) &&
+          request.resource.data.members.size() == 2)) &&
+        request.resource.data.keys().hasOnly(['members', 'title', 'createdAt', 'updatedAt', 'type']);
+      allow update: if signedIn() && request.auth.uid in resource.data.members &&
+        request.resource.data.members == resource.data.members &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title', 'updatedAt', 'lastMessage', 'lastMessageAt', 'hiddenFor'
+        ]) &&
+        (!('title' in request.resource.data) || request.resource.data.title is string) &&
+        (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp) &&
+        (!('lastMessage' in request.resource.data) || request.resource.data.lastMessage is string) &&
+        (!('lastMessageAt' in request.resource.data) || request.resource.data.lastMessageAt is timestamp) &&
+        (!('hiddenFor' in request.resource.data) || request.resource.data.hiddenFor is list);
+      allow delete: if signedIn() && request.auth.uid in resource.data.members;
+
+      match /messages/{messageId} {
+        allow read: if isChatMember(chatId);
+        allow create: if isChatMember(chatId) && validMessage();
+        // A conversation member may edit/soft-delete only their own message.
+        // Soft deletion keeps the document and displays the deleted-message note.
+        allow update: if isChatMember(chatId)
+          && resource.data.senderId == request.auth.uid
+          && request.resource.data.senderId == resource.data.senderId
+          && (validMessageEdit() || validMessageSoftDelete());
+        // Members need delete permission for the Clear History workflow.
+        allow delete: if isChatMember(chatId);
+      }
+    }
+
+    match /members/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly([
+          'displayName', 'photoUrl', 'updatedAt', 'isOnline', 'latitude',
+          'longitude', 'locationUpdatedAt', 'isSharingLocation'
+        ]) &&
+        (!('displayName' in request.resource.data) || request.resource.data.displayName is string) &&
+        (!('photoUrl' in request.resource.data) || request.resource.data.photoUrl is string) &&
+        (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp) &&
+        (!('isOnline' in request.resource.data) || request.resource.data.isOnline is bool) &&
+        (!('latitude' in request.resource.data) || request.resource.data.latitude is number) &&
+        (!('longitude' in request.resource.data) || request.resource.data.longitude is number) &&
+        (!('locationUpdatedAt' in request.resource.data) || request.resource.data.locationUpdatedAt is timestamp) &&
+        (!('isSharingLocation' in request.resource.data) || request.resource.data.isSharingLocation is bool);
+      allow delete: if false;
+    }
+  }
+}
